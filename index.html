@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080812">
+<title>CRAZY MUSIC</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#080812;color:white;font-family:Arial,sans-serif}
+header{text-align:center;font-size:32px;font-weight:900;letter-spacing:5px;color:#ff38d1;text-shadow:0 0 20px #ff38d188;margin:25px 0 8px}
+.subtitle{text-align:center;color:#aaa}
+.search{display:flex;gap:8px;max-width:650px;margin:25px auto}
+input{flex:1;min-width:0;padding:14px;border:1px solid #39304c;border-radius:12px;background:#151323;color:white;font-size:15px}
+button{padding:13px 17px;border:0;border-radius:12px;background:linear-gradient(120deg,#ff38d1,#8a5cff);color:white;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+h3{color:#ff65da}
+#player,#results{max-width:750px;margin:20px auto}
+#player{background:#151323;border:1px solid #39304c;padding:15px;border-radius:16px}
+iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:12px}
+.track{display:flex;align-items:center;gap:12px;background:#151323;padding:10px;margin:10px 0;border:1px solid #29243c;border-radius:12px;cursor:pointer}
+.track:hover{border-color:#ff38d1}
+.track img{width:105px;aspect-ratio:16/9;object-fit:cover;border-radius:8px}
+.track-info{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.channel{color:#aaa;font-size:12px;margin-top:6px}
+.status{text-align:center;color:#aaa;font-size:13px;overflow-wrap:anywhere}
+footer{text-align:center;color:#777;font-size:11px;margin-top:30px}
+@media(max-width:450px){body{padding:12px}header{font-size:27px}.track img{width:90px}.search button{padding:12px}}
+</style>
+</head>
+
+<body>
+<header>CRAZY MUSIC</header>
+<p class="subtitle">YOUR MUSIC. YOUR CRAZY VIBE. 🎧</p>
+
+<form class="search" id="form">
+<input id="q" placeholder="Cari lagu atau artis..." required>
+<button id="btn" type="submit">CARI</button>
+</form>
+
+<div id="player">
+<h3>▶ MUSIC PLAYER</h3>
+<p class="status">Pilih lagu dari hasil pencarian.</p>
+</div>
+
+<div id="results">
+<h3>♫ HASIL PENCARIAN</h3>
+<p class="status">Cari lagu favoritmu untuk memulai.</p>
+</div>
+
+<footer>CRAZY MUSIC © 2026<br>Powered by YouTube Data API v3</footer>
+
+<script>
+const API_KEY = "AIzaSyAI85q-PAvMmJcpKsLGEk0bHDLvizC9i5g";
+
+const form = document.getElementById("form");
+const q = document.getElementById("q");
+const results = document.getElementById("results");
+const player = document.getElementById("player");
+const btn = document.getElementById("btn");
+
+form.addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    if (!q.value.trim()) return;
+
+    btn.disabled = true;
+    btn.textContent = "MENCARI...";
+    results.innerHTML =
+        "<h3>HASIL PENCARIAN</h3><p class='status'>Mencari lagu...</p>";
+
+    try {
+        const params = new URLSearchParams({
+            part: "snippet",
+            type: "video",
+            videoCategoryId: "10",
+            maxResults: "15",
+            q: q.value.trim(),
+            key: API_KEY
+        });
+
+        const response = await fetch(
+            "https://www.googleapis.com/youtube/v3/search?" + params
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error?.message || "Permintaan API gagal"
+            );
+        }
+
+        results.innerHTML = "<h3>♫ HASIL PENCARIAN</h3>";
+
+        if (!data.items || data.items.length === 0) {
+            results.innerHTML +=
+                "<p class='status'>Lagu tidak ditemukan.</p>";
+            return;
+        }
+
+        data.items.forEach(function(item) {
+            const id = item.id.videoId;
+            const s = item.snippet;
+
+            const row = document.createElement("div");
+            row.className = "track";
+            row.tabIndex = 0;
+
+            const img = document.createElement("img");
+            img.src = s.thumbnails.medium.url;
+            img.alt = "";
+
+            const info = document.createElement("div");
+            info.className = "track-info";
+
+            const title = document.createElement("b");
+            title.textContent = s.title;
+
+            const channel = document.createElement("div");
+            channel.className = "channel";
+            channel.textContent = s.channelTitle;
+
+            info.append(title, channel);
+            row.append(img, info);
+
+            function play() {
+                player.innerHTML = "";
+
+                const heading = document.createElement("h3");
+                heading.textContent = "▶ SEDANG DIPUTAR";
+
+                const frame = document.createElement("iframe");
+                frame.src =
+                    "https://www.youtube-nocookie.com/embed/" +
+                    encodeURIComponent(id) + "?autoplay=1&rel=0";
+                frame.title = s.title;
+                frame.allow =
+                    "autoplay; encrypted-media; picture-in-picture";
+                frame.allowFullscreen = true;
+
+                const caption = document.createElement("p");
+                caption.className = "status";
+                caption.textContent = s.title;
+
+                player.append(heading, frame, caption);
+                window.scrollTo({top: 0, behavior: "smooth"});
+            }
+
+            row.addEventListener("click", play);
+            row.addEventListener("keydown", function(e) {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    play();
+                }
+            });
+
+            results.appendChild(row);
+        });
+
+    } catch (error) {
+        results.innerHTML =
+            "<h3>PENCARIAN GAGAL</h3><p class='status'>" +
+            error.message +
+            "<br>Periksa API key, internet, dan kuota API.</p>";
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "CARI";
+    }
+});
+</script>
+</body>
+</html>
